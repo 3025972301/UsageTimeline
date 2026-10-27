@@ -18,6 +18,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,6 +65,11 @@ private fun AppRoot() {
         // 每次回到前台都重新检查权限并刷新数据：
         // 用户从「使用情况访问」设置页返回后，无需重启即可看到数据。
         val lifecycleOwner = LocalLifecycleOwner.current
+        LaunchedEffect(lifecycleOwner, vm) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                vm.autoRefresh()
+            }
+        }
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) vm.onResumeTick()

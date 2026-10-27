@@ -35,8 +35,9 @@ data class DayUsage(
     val unlockCount: Int,
 ) {
     val sessionCount: Int get() = sessions.size
+    private val appsByPackage = apps.associateBy { it.packageName }
 
-    fun appOf(packageName: String): AppUsage? = apps.firstOrNull { it.packageName == packageName }
+    fun appOf(packageName: String): AppUsage? = appsByPackage[packageName]
 
     companion object {
         fun empty(dayStart: Long, dayEnd: Long) = DayUsage(

@@ -33,6 +33,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.getValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,7 +62,9 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /** 应用图标缓存（避免每次重组都访问 PackageManager）。 */
 object AppIconCache {
-    private val cache = LruCache<String, Bitmap>(160)
+    private val cache = object : LruCache<String, Bitmap>(4 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
 
     fun load(context: Context, packageName: String): Bitmap? {
         cache.get(packageName)?.let { return it }
@@ -77,11 +83,14 @@ object AppIconCache {
 @Composable
 fun AppIcon(packageName: String, size: Int = 40, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val bitmap = remember(packageName) { AppIconCache.load(context, packageName) }
+    val bitmap by produceState<Bitmap?>(null, packageName) {
+        value = withContext(Dispatchers.IO) { AppIconCache.load(context, packageName) }
+    }
     val shape = RoundedCornerShape((size * 0.28f).dp)
-    if (bitmap != null) {
+    val loadedBitmap = bitmap
+    if (loadedBitmap != null) {
         Image(
-            bitmap = bitmap.asImageBitmap(),
+            bitmap = loadedBitmap.asImageBitmap(),
             contentDescription = null,
             modifier = modifier
                 .size(size.dp)

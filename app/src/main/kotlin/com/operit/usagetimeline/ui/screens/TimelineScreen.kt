@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import java.time.Instant
+import java.time.ZoneId
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,7 +46,6 @@ import com.operit.usagetimeline.ui.DateBar
 import com.operit.usagetimeline.ui.EmptyHint
 import com.operit.usagetimeline.ui.HourBarChart
 import com.operit.usagetimeline.ui.PermissionCard
-import com.operit.usagetimeline.ui.RowDivider
 import com.operit.usagetimeline.ui.SearchField
 import com.operit.usagetimeline.ui.UiState
 import com.operit.usagetimeline.ui.UsageViewModel
@@ -96,9 +98,8 @@ fun TimelineScreen(
 
     // 按小时分组（在 Composable 上下文中预先算好，LazyListScope 里不能调用 remember）
     val groupedByHour = remember(visibleSessions, day, descending) {
-        val dayStart = day?.dayStart ?: 0L
         val map = visibleSessions.groupBy {
-            ((it.start - dayStart) / 3600_000L).toInt().coerceIn(0, 23)
+            Instant.ofEpochMilli(it.start).atZone(ZoneId.systemDefault()).hour
         }
         val keys = map.keys.toList().let { if (descending) it.sortedDescending() else it.sorted() }
         keys.map { it to (map[it] ?: emptyList()) }
@@ -239,23 +240,18 @@ fun TimelineScreen(
                         totalMs = sessions.sumOf { it.duration },
                     )
                 }
-                item(key = "c_$hour") {
+                val maxDuration = sessions.maxOfOrNull { it.duration } ?: 1L
+                itemsIndexed(sessions, key = { _, s -> "${s.packageName}:${s.start}" }) { _, session ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         insideMargin = PaddingValues(0.dp),
                     ) {
-                        val maxDuration = sessions.maxOfOrNull { it.duration } ?: 1L
-                        sessions.forEachIndexed { index, session ->
-                            SessionRow(
-                                session = session,
-                                label = d.appOf(session.packageName)?.label ?: session.packageName,
-                                maxDuration = maxDuration,
-                                onClick = { onOpenApp(session.packageName) },
-                            )
-                            if (index != sessions.lastIndex) {
-                                RowDivider(modifier = Modifier.padding(start = 16.dp))
-                            }
-                        }
+                        SessionRow(
+                            session = session,
+                            label = d.appOf(session.packageName)?.label ?: session.packageName,
+                            maxDuration = maxDuration,
+                            onClick = { onOpenApp(session.packageName) },
+                        )
                     }
                 }
             }

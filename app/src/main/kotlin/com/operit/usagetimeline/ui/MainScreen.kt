@@ -7,9 +7,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +30,7 @@ import top.yukonga.miuix.kmp.basic.NavigationBarItem
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
 import top.yukonga.miuix.kmp.icon.extended.GridView
 import top.yukonga.miuix.kmp.icon.extended.ListView
@@ -52,6 +56,9 @@ fun MainScreen(vm: UsageViewModel, state: UiState) {
     val tab = Tab.valueOf(currentTab)
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(state.hasPermission) {
+        if (!state.hasPermission) detailPackage = null
+    }
 
     // 关键：保存每个 Tab 的界面状态（LazyList 滚动位置、搜索词等），
     // 从详情页/设置页返回时不会重建列表、不会回到顶部。
@@ -98,7 +105,16 @@ fun MainScreen(vm: UsageViewModel, state: UiState) {
                 .padding(bottom = if (detailPackage == null && !showSettings) padding.calculateBottomPadding() else 0.dp),
         ) {
             // 详情页 / 设置页用覆盖层方式呈现（不销毁下层 Tab 内容，返回后滚动位置完整保留）
-            AnimatedContent(
+            if (state.loading && !state.hasPermission) {
+                Box(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
+                    EmptyHint(title = "正在读取使用记录…", summary = "")
+                }
+            } else if (state.error != null && state.day == null) {
+                Column(Modifier.fillMaxSize().statusBarsPadding().padding(24.dp)) {
+                    EmptyHint(title = "读取失败", summary = state.error)
+                    TextButton(text = "重试", onClick = { vm.refresh() })
+                }
+            } else AnimatedContent(
                 targetState = Tab.valueOf(currentTab),
                 transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(110)) },
                 label = "tab",
@@ -129,6 +145,10 @@ fun MainScreen(vm: UsageViewModel, state: UiState) {
                         )
                     }
                 }
+            }
+
+            if (state.error != null && state.day != null) {
+                LaunchedEffect(state.error) { toast("刷新失败，已保留上次记录：${state.error}") }
             }
 
             if (detailPackage != null) {

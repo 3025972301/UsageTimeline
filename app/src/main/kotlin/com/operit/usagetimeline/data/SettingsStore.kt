@@ -12,7 +12,7 @@ class SettingsStore(context: Context) {
     private val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
     /** 最短记录阈值（秒），低于该值的切换不算一次使用。 */
-    var minSessionSeconds by mutableStateOf(sp.getInt(KEY_MIN_SESSION, 5))
+    var minSessionSeconds by mutableStateOf(sp.getInt(KEY_MIN_SESSION, 5).coerceIn(0, 60))
         private set
 
     /** 时间线隐藏系统应用 */
@@ -24,7 +24,7 @@ class SettingsStore(context: Context) {
         private set
 
     /** 深色模式：0=跟随系统 1=浅色 2=深色 */
-    var themeMode by mutableStateOf(sp.getInt(KEY_THEME_MODE, 0))
+    var themeMode by mutableStateOf(sp.getInt(KEY_THEME_MODE, 0).coerceIn(0, 2))
         private set
 
     /** 时间线是否按「时间段」合并相邻记录展示 */
@@ -32,7 +32,7 @@ class SettingsStore(context: Context) {
         private set
 
     fun updateMinSessionSeconds(value: Int) {
-        val v = value.coerceIn(0, 300)
+        val v = value.coerceIn(0, 60)
         minSessionSeconds = v
         sp.edit().putInt(KEY_MIN_SESSION, v).apply()
     }

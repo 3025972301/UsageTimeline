@@ -1,5 +1,7 @@
 # 使用时间线 (UsageTimeline)
 
+<img src="docs/icon.svg" width="96" alt="使用时间线图标" />
+
 一个轻量的 Android 应用使用时间查看器。以**时间线**形式查看什么时候打开了哪个应用、用了多久，点进应用可查看完整使用记录，并统计一天的总使用时长。
 
 界面完全基于 [Miuix](https://github.com/compose-miuix-ui/miuix)（Compose Multiplatform 的 MIUI 风格组件库）构建。
@@ -65,10 +67,33 @@
 
 ```bash
 export ANDROID_HOME=/path/to/android-sdk
-gradle :app:assembleDebug
+bash gradlew :app:assembleDebug
+bash gradlew :app:testDebugUnitTest :app:lintDebug
 ```
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`
+
+正式安装包请使用 [Releases](https://github.com/3025972301/UsageTimeline/releases) 中的 Release APK，
+不要用 Debug 包评估体积。Release 开启 R8 和资源压缩，保留所有 CPU 架构，约 1.4 MB；
+主要体积来自 Compose/Miuix 运行代码。继续压至 1 MB 需要替换界面技术栈，本项目保留原有体验。
+
+SDK 包：`platforms;android-37.0`、`build-tools;37.0.0`。使用完整 JDK 17+。
+已移除机器专属 AAPT2 路径，默认使用 AGP 提供的工具。
+发布签名与构建方法见 [发布说明](docs/RELEASING.md)。
+
+## 1.1.0 改进
+
+- 图标保留蓝白时间轴主题，重绘记录条比例、圆角和间距；自适应与单色图标继续支持。
+- 当天刷新只查询新增事件及最近一分钟的重叠区间；最多缓存 8 天数据，避免重复解析历史记录。
+- 筛选设置复用已读取数据，应用名称与系统应用标记复用缓存；图标在后台读取，内存缓存限制为 4 MB。
+- 刷新保留旧列表，切换日期清除旧日期内容；取消任务不会覆盖新结果，失败后可重试。
+- 时间线、应用列表和详情记录逐行惰性渲染，前台每分钟自动刷新，后台停止定时查询。
+- 修复同一应用再次打开时误计空闲时间、短片段过滤顺序和夏令时小时统计。
+- 详情七天范围以所选日期为结束日期，切换页面会取消未完成查询。
+- 增加解析与缓存的 JVM 回归测试，涵盖跨午夜、锁屏、夏令时、重复事件、取消和时钟回拨。
+
+首次读取仍受手机系统 UsageStats 服务及记录量影响，云端测试不代表真机刷新耗时。
+历史事件由系统保留，应用不会凭空补全已被系统清理的数据。
 
 ### 技术栈
 
@@ -77,6 +102,7 @@ gradle :app:assembleDebug
 | Kotlin | 2.4.20 |
 | Android Gradle Plugin | 8.13.2 |
 | Gradle | 8.14.3 |
+| R8 | 9.1.57（支持 Kotlin 2.4 元数据） |
 | compileSdk / targetSdk | 37 / 36 |
 | minSdk | 26 |
 | Miuix | 0.9.1 |

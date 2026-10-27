@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.CancellationException
+import com.operit.usagetimeline.data.hourlyUsage
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +39,6 @@ import com.operit.usagetimeline.ui.AppIcon
 import com.operit.usagetimeline.ui.EmptyHint
 import com.operit.usagetimeline.ui.GroupTitle
 import com.operit.usagetimeline.ui.HourBarChart
-import com.operit.usagetimeline.ui.RowDivider
 import com.operit.usagetimeline.ui.StatCell
 import com.operit.usagetimeline.ui.UiState
 import com.operit.usagetimeline.ui.UsageViewModel
@@ -73,14 +76,24 @@ fun AppDetailScreen(
     val installed = remember(packageName) { isAppInstalled(context, packageName) }
 
     // 0 = 当天；1 = 近 7 天
-    var tabIndex by remember { mutableStateOf(0) }
+    var tabIndex by rememberSaveable(packageName) { mutableStateOf(0) }
     var history by remember(packageName) { mutableStateOf<List<UsageSession>>(emptyList()) }
     var historyLoaded by remember(packageName) { mutableStateOf(false) }
+    var historyError by remember(packageName) { mutableStateOf<String?>(null) }
+    var retry by remember { mutableStateOf(0) }
 
-    LaunchedEffect(packageName, tabIndex) {
-        if (tabIndex == 1 && !historyLoaded) {
-            vm.loadAppHistory(packageName, days = 7) { result ->
-                history = result
+    LaunchedEffect(packageName, tabIndex, state.date, state.day, state.hasPermission, vm.settings.minSessionSeconds, retry) {
+        if (tabIndex == 1) {
+            historyLoaded = false
+            historyError = null
+            history = emptyList()
+            try {
+                history = vm.loadAppHistory(packageName, days = 7, endDate = state.date)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                historyError = e.message ?: "读取记录失败"
+            } finally {
                 historyLoaded = true
             }
         }
@@ -94,21 +107,9 @@ fun AppDetailScreen(
     val totalMs = sessions.sumOf { it.duration }
 
     // 当天各小时分布
-    val hourly = remember(app, day) {
-        val arr = LongArray(24)
-        val d = day ?: return@remember arr
-        app?.sessions?.forEach { s ->
-            var t = s.start
-            while (t < s.end) {
-                val hour = ((t - d.dayStart) / 3600_000L).toInt().coerceIn(0, 23)
-                val hourEnd = d.dayStart + (hour + 1) * 3600_000L
-                val chunkEnd = minOf(s.end, hourEnd)
-                arr[hour] += chunkEnd - t
-                t = chunkEnd
-            }
-        }
-        arr
-    }
+    val hourly = remember(app) { hourlyUsage(app?.sessions.orEmpty()) }
+    val reversed = remember(sessions) { sessions.sortedByDescending { it.start } }
+    val maxDuration = remember(sessions) { sessions.maxOfOrNull { it.duration } ?: 1L }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -157,7 +158,7 @@ fun AppDetailScreen(
                                     text = if (tabIndex == 0) {
                                         Fmt.dayLabel(state.date, state.today) + " 使用记录"
                                     } else {
-                                        "近 7 天使用记录"
+                                        "截至 ${state.date} 的 7 天记录"
                                     },
                                     fontSize = 11.sp,
                                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -187,6 +188,7 @@ fun AppDetailScreen(
                         Spacer(Modifier.height(16.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(
+                                enabled = installed,
                                 onClick = {
                                     if (!launchApp(context, packageName)) {
                                         snackbar("无法启动该应用")
@@ -236,6 +238,11 @@ fun AppDetailScreen(
                     item {
                         EmptyHint(title = "正在加载…", summary = "读取近 7 天记录")
                     }
+                } else if (tabIndex == 1 && historyError != null) {
+                    item {
+                        EmptyHint(title = "读取失败", summary = historyError!!)
+                        TextButton(text = "重试", onClick = { retry++ })
+                    }
                 } else if (sessions.isEmpty()) {
                     item {
                         EmptyHint(
@@ -244,22 +251,15 @@ fun AppDetailScreen(
                         )
                     }
                 } else {
-                    item {
+                    itemsIndexed(reversed, key = { _, s -> "${s.packageName}:${s.start}" }) { index, session ->
                         Card(modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(0.dp)) {
-                            val maxDuration = sessions.maxOf { it.duration }
-                            val reversed = sessions.sortedByDescending { it.start }
-                            reversed.forEachIndexed { index, session ->
-                                DetailSessionRow(
-                                    session = session,
-                                    maxDuration = maxDuration,
-                                    color = color,
-                                    index = index,
-                                    showDate = tabIndex == 1,
-                                )
-                                if (index != reversed.lastIndex) {
-                                    RowDivider(modifier = Modifier.padding(start = 16.dp))
-                                }
-                            }
+                            DetailSessionRow(
+                                session = session,
+                                maxDuration = maxDuration,
+                                color = color,
+                                index = index,
+                                showDate = tabIndex == 1,
+                            )
                         }
                     }
                 }

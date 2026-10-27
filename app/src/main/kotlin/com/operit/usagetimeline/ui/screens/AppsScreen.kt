@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
@@ -212,22 +213,15 @@ fun AppsScreen(
                 }
             }
 
-            item {
-                if (sortedApps.isNotEmpty()) {
-                    val maxTotal = sortedApps.first().totalMs.coerceAtLeast(1L)
-                    Card(modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(0.dp)) {
-                        sortedApps.forEachIndexed { index, app ->
-                            AppUsageRow(
-                                app = app,
-                                maxTotal = maxTotal,
-                                totalMs = day?.totalMs ?: 0L,
-                                onClick = { onOpenApp(app.packageName) },
-                            )
-                            if (index != sortedApps.lastIndex) {
-                                RowDivider(modifier = Modifier.padding(start = 16.dp))
-                            }
-                        }
-                    }
+            val maxTotal = sortedApps.maxOfOrNull { it.totalMs }?.coerceAtLeast(1L) ?: 1L
+            items(sortedApps, key = { it.packageName }) { app ->
+                Card(modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(0.dp)) {
+                    AppUsageRow(
+                        app = app,
+                        maxTotal = maxTotal,
+                        totalMs = day?.totalMs ?: 0L,
+                        onClick = { onOpenApp(app.packageName) },
+                    )
                 }
             }
         }
