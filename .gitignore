@@ -1,0 +1,26 @@
+# Gradle / Android build outputs
+build/
+.gradle/
+.kotlin/
+captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Local configuration (SDK paths, signing keys)
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+nohup.out

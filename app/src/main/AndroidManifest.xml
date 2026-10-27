@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission"
+        xmlns:tools="http://schemas.android.com/tools" />
+
+    <application
+        android:label="使用时间线"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/Theme.UsageTimeline">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="使用时间线"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize|density|keyboardHidden"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.UsageTimeline">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

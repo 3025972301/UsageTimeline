@@ -1,0 +1,2 @@
+-keep class com.operit.usagetimeline.** { *; }
+-dontwarn org.jetbrains.compose.**
